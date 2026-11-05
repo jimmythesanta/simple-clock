@@ -1,37 +1,427 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clock</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #fff;
-            color: #000;
-        }
-        #clock {
-            font-size: 3rem;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minimalist Clock</title>
+<style>
+    :root {
+        --bg-color: #1a1a2e;
+        --bg-glow: #16213e;
+        --panel: rgba(255, 255, 255, 0.05);
+        --panel-border: rgba(255, 255, 255, 0.10);
+        --btn-bg: rgba(255, 255, 255, 0.08);
+        --btn-hover: rgba(255, 255, 255, 0.16);
+        --accent: #e94560;
+        --accent-hover: #d83b54;
+        --accent-soft: rgba(233, 69, 96, 0.35);
+        --text-main: #ffffff;
+        --text-muted: #a0a0b0;
+    }
+
+    /* ---------- Minimal themes ---------- */
+    body[data-theme="ocean"] {
+        --bg-color: #08131f;
+        --bg-glow: #0b3b52;
+        --accent: #38bdf8;
+        --accent-hover: #0ea5e9;
+        --accent-soft: rgba(56, 189, 248, 0.35);
+    }
+
+    body[data-theme="violet"] {
+        --bg-color: #100d1c;
+        --bg-glow: #2e1065;
+        --accent: #a78bfa;
+        --accent-hover: #8b5cf6;
+        --accent-soft: rgba(167, 139, 250, 0.35);
+    }
+
+    body[data-theme="amber"] {
+        --bg-color: #17120a;
+        --bg-glow: #422006;
+        --accent: #fbbf24;
+        --accent-hover: #f59e0b;
+        --accent-soft: rgba(251, 191, 36, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 24px 16px;
+        background: radial-gradient(circle at top left, var(--bg-glow), var(--bg-color));
+        background-color: var(--bg-color);
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        color: var(--text-main);
+        transition: background-color .35s ease;
+    }
+
+    .page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+        width: 100%;
+        max-width: 460px;
+    }
+
+    .clock-card {
+        position: relative;
+        width: 100%;
+        padding: 22px 26px 24px;
+        background: var(--panel);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--panel-border);
+        border-radius: 24px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+        text-align: center;
+    }
+
+    /* ---------- Theme switcher ---------- */
+    .theme-bar {
+        display: flex;
+        justify-content: flex-end;
+        gap: 7px;
+        margin-bottom: 6px;
+    }
+
+    .theme-dot {
+        width: 10px;
+        height: 10px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        opacity: .55;
+        transition: transform .2s ease, opacity .2s ease, box-shadow .2s ease;
+    }
+
+    .theme-dot:hover { transform: scale(1.3); opacity: 1; }
+
+    .theme-dot.active {
+        opacity: 1;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+    }
+
+    .theme-dot[data-theme="rose"]   { background: #e94560; }
+    .theme-dot[data-theme="ocean"]  { background: #38bdf8; }
+    .theme-dot[data-theme="violet"] { background: #a78bfa; }
+    .theme-dot[data-theme="amber"]  { background: #fbbf24; }
+
+    /* ---------- Date ---------- */
+    .date {
+        font-size: 0.82rem;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        min-height: 20px;
+        margin-bottom: 10px;
+        transition: opacity .25s ease;
+    }
+
+    .date.hidden { opacity: 0; }
+
+    /* ---------- Time ---------- */
+    .time {
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 2px;
+        font-size: clamp(2.6rem, 11vw, 4rem);
+        font-weight: 300;
+        line-height: 1.1;
+        letter-spacing: -1px;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-main);
+        text-shadow: 0 0 24px var(--accent-soft);
+    }
+
+    .seg { display: inline-block; }
+
+    .colon {
+        display: inline-block;
+        width: 0.42em;
+        text-align: center;
+        color: var(--accent);
+        font-weight: 400;
+        animation: blink 1s steps(1, end) infinite;
+    }
+
+    .seconds { color: var(--text-muted); font-size: 0.78em; }
+    .ampm {
+        font-size: 0.34em;
+        font-weight: 600;
+        letter-spacing: 1px;
+        color: var(--accent);
+        margin-left: 6px;
+        align-self: center;
+        text-transform: uppercase;
+    }
+
+    .hidden-part { display: none; }
+
+    @keyframes blink {
+        0%, 45%   { opacity: 1; }
+        55%, 100% { opacity: 0.12; }
+    }
+
+    /* ---------- Controls ---------- */
+    .controls {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 20px;
+    }
+
+    button.ctrl {
+        background: var(--btn-bg);
+        border: none;
+        outline: none;
+        color: var(--text-muted);
+        font-family: inherit;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background .18s ease, color .18s ease, transform .1s ease, box-shadow .18s ease;
+    }
+
+    button.ctrl:hover { background: var(--btn-hover); color: var(--text-main); }
+
+    button.ctrl:active,
+    button.ctrl.pressed {
+        transform: scale(0.94);
+        background: var(--btn-hover);
+    }
+
+    button.ctrl:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+
+    button.ctrl.on { color: var(--accent); }
+
+    /* ---------- Footer ---------- */
+    .footer {
+        font-size: 0.8rem;
+        letter-spacing: 0.4px;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        opacity: .85;
+    }
+
+    .footer .heart {
+        display: inline-block;
+        font-size: 0.95rem;
+        animation: beat 1.6s ease-in-out infinite;
+    }
+
+    @keyframes beat {
+        0%, 100% { transform: scale(1); }
+        50%      { transform: scale(1.2); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .footer .heart,
+        .colon { animation: none; }
+        button.ctrl, .theme-dot, .date { transition: none; }
+    }
+</style>
 </head>
-<body>
+<body data-theme="rose">
 
-    <div id="clock">--:--:--</div>
+<div class="page">
 
-    <script>
-        function tick() {
-            const now = new Date();
-            document.getElementById('clock').textContent = now.toLocaleTimeString();
+    <div class="clock-card">
+        <div class="theme-bar" role="group" aria-label="Color theme">
+            <button class="theme-dot active" data-theme="rose"   title="Rose"   aria-label="Rose theme"></button>
+            <button class="theme-dot"        data-theme="ocean"  title="Ocean"  aria-label="Ocean theme"></button>
+            <button class="theme-dot"        data-theme="violet" title="Violet" aria-label="Violet theme"></button>
+            <button class="theme-dot"        data-theme="amber"  title="Amber"  aria-label="Amber theme"></button>
+        </div>
+
+        <div class="date" id="date"></div>
+
+        <div class="time" id="time" role="timer" aria-live="off">
+            <span class="seg" id="hours">--</span>
+            <span class="colon">:</span>
+            <span class="seg" id="minutes">--</span>
+            <span class="colon" id="colon2">:</span>
+            <span class="seg seconds" id="seconds">--</span>
+            <span class="ampm hidden-part" id="ampm">AM</span>
+        </div>
+
+        <div class="controls">
+            <button class="ctrl" id="formatBtn"  data-key="t" title="Toggle 12/24 hour (T)">24H</button>
+            <button class="ctrl on" id="secondsBtn" data-key="s" title="Toggle seconds (S)">Seconds: On</button>
+            <button class="ctrl on" id="dateBtn"    data-key="d" title="Toggle date (D)">Date: On</button>
+        </div>
+    </div>
+
+    <footer class="footer">
+        Made with <span class="heart">❤️</span>
+    </footer>
+
+</div>
+
+<script>
+    const STORE = {
+        theme:   'clock-theme',
+        format:  'clock-format',
+        seconds: 'clock-seconds',
+        date:    'clock-date'
+    };
+
+    const state = {
+        format24: true,
+        showSeconds: true,
+        showDate: true,
+        lastSecond: -1
+    };
+
+    const el = {
+        hours:      document.getElementById('hours'),
+        minutes:    document.getElementById('minutes'),
+        seconds:    document.getElementById('seconds'),
+        colon2:     document.getElementById('colon2'),
+        ampm:       document.getElementById('ampm'),
+        date:       document.getElementById('date'),
+        formatBtn:  document.getElementById('formatBtn'),
+        secondsBtn: document.getElementById('secondsBtn'),
+        dateBtn:    document.getElementById('dateBtn')
+    };
+
+    const pad = n => String(n).padStart(2, '0');
+
+    function renderDate(now) {
+        if (!state.showDate) {
+            el.date.textContent = '';
+            el.date.classList.add('hidden');
+            return;
+        }
+        el.date.classList.remove('hidden');
+        el.date.textContent = now.toLocaleDateString(undefined, {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+
+    function render(now) {
+        const h = now.getHours();
+        const m = now.getMinutes();
+        const s = now.getSeconds();
+
+        if (state.format24) {
+            el.hours.textContent = pad(h);
+            el.ampm.classList.add('hidden-part');
+        } else {
+            const h12 = h % 12 || 12;
+            el.hours.textContent = pad(h12);
+            el.ampm.textContent = h < 12 ? 'AM' : 'PM';
+            el.ampm.classList.remove('hidden-part');
         }
 
-        tick();
-        setInterval(tick, 1000);
-    </script>
+        el.minutes.textContent = pad(m);
+        el.seconds.textContent = pad(s);
+
+        renderDate(now);
+    }
+
+    function tick() {
+        const now = new Date();
+        if (now.getSeconds() === state.lastSecond) return;
+        state.lastSecond = now.getSeconds();
+        render(now);
+    }
+
+    /* ---------- Controls ---------- */
+    function setFormat(is24, save = true) {
+        state.format24 = is24;
+        el.formatBtn.textContent = is24 ? '24H' : '12H';
+        el.formatBtn.classList.toggle('on', !is24);
+        if (save) { try { localStorage.setItem(STORE.format, is24 ? '24' : '12'); } catch (e) {} }
+        render(new Date());
+    }
+
+    function setSeconds(on, save = true) {
+        state.showSeconds = on;
+        el.seconds.classList.toggle('hidden-part', !on);
+        el.colon2.classList.toggle('hidden-part', !on);
+        el.secondsBtn.textContent = 'Seconds: ' + (on ? 'On' : 'Off');
+        el.secondsBtn.classList.toggle('on', on);
+        if (save) { try { localStorage.setItem(STORE.seconds, on ? '1' : '0'); } catch (e) {} }
+        render(new Date());
+    }
+
+    function setDate(on, save = true) {
+        state.showDate = on;
+        el.dateBtn.textContent = 'Date: ' + (on ? 'On' : 'Off');
+        el.dateBtn.classList.toggle('on', on);
+        if (save) { try { localStorage.setItem(STORE.date, on ? '1' : '0'); } catch (e) {} }
+        render(new Date());
+    }
+
+    el.formatBtn.addEventListener('click',  () => setFormat(!state.format24));
+    el.secondsBtn.addEventListener('click', () => setSeconds(!state.showSeconds));
+    el.dateBtn.addEventListener('click',    () => setDate(!state.showDate));
+
+    /* ---------- Keyboard support with visual feedback ---------- */
+    function flash(btn) {
+        if (!btn) return;
+        btn.classList.add('pressed');
+        setTimeout(() => btn.classList.remove('pressed'), 110);
+    }
+
+    window.addEventListener('keydown', (e) => {
+        const k = e.key.toLowerCase();
+        if (k === 't') { setFormat(!state.format24); flash(el.formatBtn); }
+        if (k === 's') { setSeconds(!state.showSeconds); flash(el.secondsBtn); }
+        if (k === 'd') { setDate(!state.showDate); flash(el.dateBtn); }
+    });
+
+    /* ---------- Themes ---------- */
+    const themeDots = document.querySelectorAll('.theme-dot');
+
+    function applyTheme(theme) {
+        document.body.dataset.theme = theme;
+        themeDots.forEach(dot => dot.classList.toggle('active', dot.dataset.theme === theme));
+        try { localStorage.setItem(STORE.theme, theme); } catch (e) {}
+    }
+
+    themeDots.forEach(dot =>
+        dot.addEventListener('click', () => applyTheme(dot.dataset.theme))
+    );
+
+    /* ---------- Restore preferences ---------- */
+    (function restore() {
+        let theme = null, format = null, secs = null, date = null;
+        try {
+            theme  = localStorage.getItem(STORE.theme);
+            format = localStorage.getItem(STORE.format);
+            secs   = localStorage.getItem(STORE.seconds);
+            date   = localStorage.getItem(STORE.date);
+        } catch (e) {}
+
+        if (theme && document.querySelector(`.theme-dot[data-theme="${theme}"]`)) {
+            applyTheme(theme);
+        }
+        if (format) setFormat(format === '24', false);
+        if (secs !== null) setSeconds(secs === '1', false);
+        if (date !== null) setDate(date === '1', false);
+    })();
+
+    /* ---------- Start ---------- */
+    render(new Date());
+    setInterval(tick, 250);
+</script>
 </body>
 </html>
